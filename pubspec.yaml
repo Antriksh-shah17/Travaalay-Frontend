@@ -1,0 +1,54 @@
+name: traavaalay
+description: "A new Flutter project."
+publish_to: 'none'
+version: 0.1.0
+
+environment:
+  sdk: ^3.9.2
+
+dependencies:
+  carousel_slider: ^5.1.1
+  cloud_firestore: ^6.0.2
+  firebase_auth: ^6.1.0
+  firebase_core: ^4.1.1
+  file_picker: ^8.0.0
+  image_picker: ^1.1.2
+  flutter:
+    sdk: flutter
+  google_fonts: ^6.3.0
+  google_sign_in: ^6.2.2
+  intl: ^0.20.2
+  firebase_storage: ^13.0.2
+  flutter_secure_storage: ^9.2.4
+  flutter_rating_bar: ^4.0.1
+  http: ^1.5.0
+  url_launcher: ^6.3.1
+  video_player: ^2.9.2
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^5.0.0
+  flutter_launcher_icons: ^0.13.1   
+
+flutter_icons:
+  android: true
+  ios: true
+  image_path: "assets/logogg.png"
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/download.jpeg
+    - assets/astro.jpeg
+    - assets/astro.mp4
+    - assets/translator.mp4
+    - assets/agro.mp4
+    - assets/lunar.jpeg
+    - assets/profile.png
+    - assets/logog.png
+    - assets/logogg.png
+    - assets/TravText.png
+    - assets/Gauri.jpeg
+    - assets/Language Translation Animation.gif
+    - assets/Travel the world.gif
