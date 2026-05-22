@@ -3,14 +3,20 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:traavaalay/View/Login.dart';
+import 'package:traavaalay/View/Profile/EditProfilePage.dart';
 import 'package:traavaalay/View/User/MyBookingsPage.dart';
 import 'package:traavaalay/config/api_config.dart';
 import 'package:traavaalay/theme/app_colors.dart';
 
 class UserProfilePage extends StatefulWidget {
   final String userId;
+  final ValueChanged<Map<String, dynamic>>? onProfileUpdated;
 
-  const UserProfilePage({super.key, required this.userId});
+  const UserProfilePage({
+    super.key,
+    required this.userId,
+    this.onProfileUpdated,
+  });
 
   @override
   State<UserProfilePage> createState() => _UserProfilePageState();
@@ -41,6 +47,7 @@ class _UserProfilePageState extends State<UserProfilePage> {
           user = data;
           _isLoading = false;
         });
+        widget.onProfileUpdated?.call(data);
       } else {
         setState(() => _isLoading = false);
       }
@@ -49,6 +56,25 @@ class _UserProfilePageState extends State<UserProfilePage> {
       if (!mounted) return;
       setState(() => _isLoading = false);
     }
+  }
+
+  Future<void> _openEditProfile() async {
+    if (user == null) return;
+
+    final updatedUser = await Navigator.push<Map<String, dynamic>>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => EditProfilePage(user: Map<String, dynamic>.from(user!)),
+      ),
+    );
+
+    if (updatedUser == null || !mounted) return;
+
+    setState(() {
+      user = updatedUser;
+    });
+    widget.onProfileUpdated?.call(updatedUser);
+    await fetchUser();
   }
 
   @override
@@ -66,10 +92,18 @@ class _UserProfilePageState extends State<UserProfilePage> {
 
     final profile = user!;
     final name = (profile["name"] ?? "Traveler").toString();
-    final email = (profile["email"] ?? "No email added").toString();
     final city = (profile["city"] ?? "Unknown destination").toString();
+    final email = (profile["email"] ?? "No email added").toString();
+    final phone = (profile["phone"] ?? "No number added").toString();
     final role = _formatRole(profile["role"]);
+    final heroRole = role == "User" ? "Tourist" : role;
+    final languages = ((profile["languages"] as List?) ?? const [])
+        .map((language) => language.toString().trim())
+        .where((language) => language.isNotEmpty)
+        .toList();
     final initials = _buildInitials(name);
+    final profileImage = (profile["profileImage"] ?? "").toString();
+    final resolvedProfileImage = _resolveProfileImage(profileImage);
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -77,7 +111,7 @@ class _UserProfilePageState extends State<UserProfilePage> {
         slivers: [
           SliverAppBar(
             pinned: true,
-            expandedHeight: 300,
+            expandedHeight: 235,
             backgroundColor: AppColors.surface,
             foregroundColor: Colors.white,
             title: const Text("My Journey"),
@@ -123,28 +157,34 @@ class _UserProfilePageState extends State<UserProfilePage> {
                               child: Padding(
                                 padding: const EdgeInsets.fromLTRB(
                                   24,
-                                  110,
+                                  96,
                                   24,
-                                  28,
+                                  20,
                                 ),
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   mainAxisAlignment: MainAxisAlignment.end,
                                   children: [
                                     CircleAvatar(
-                                      radius: 42,
+                                      radius: 34,
                                       backgroundColor: Colors.white,
                                       child: CircleAvatar(
-                                        radius: 38,
+                                        radius: 30,
                                         backgroundColor: AppColors.secondary,
-                                        child: Text(
-                                          initials,
-                                          style: const TextStyle(
-                                            fontSize: 28,
-                                            fontWeight: FontWeight.bold,
-                                            color: AppColors.primary,
-                                          ),
-                                        ),
+                                        backgroundImage:
+                                            resolvedProfileImage != null
+                                            ? NetworkImage(resolvedProfileImage)
+                                            : null,
+                                        child: resolvedProfileImage == null
+                                            ? Text(
+                                                initials,
+                                                style: const TextStyle(
+                                                  fontSize: 22,
+                                                  fontWeight: FontWeight.bold,
+                                                  color: AppColors.primary,
+                                                ),
+                                              )
+                                            : null,
                                       ),
                                     ),
                                     const SizedBox(height: 18),
@@ -152,34 +192,19 @@ class _UserProfilePageState extends State<UserProfilePage> {
                                       name,
                                       style: const TextStyle(
                                         color: Colors.white,
-                                        fontSize: 28,
+                                        fontSize: 22,
                                         fontWeight: FontWeight.bold,
                                       ),
                                     ),
-                                    const SizedBox(height: 6),
+                                    const SizedBox(height: 4),
                                     Text(
-                                      "$role • $city",
+                                      "$heroRole, $city",
                                       style: TextStyle(
                                         color: Colors.white.withValues(
                                           alpha: 0.9,
                                         ),
-                                        fontSize: 15,
+                                        fontSize: 13,
                                       ),
-                                    ),
-                                    const SizedBox(height: 14),
-                                    Wrap(
-                                      spacing: 10,
-                                      runSpacing: 10,
-                                      children: [
-                                        _buildHeroChip(
-                                          Icons.email_outlined,
-                                          email,
-                                        ),
-                                        _buildHeroChip(
-                                          Icons.travel_explore_outlined,
-                                          "Ready for your next trip",
-                                        ),
-                                      ],
                                     ),
                                   ],
                                 ),
@@ -200,43 +225,33 @@ class _UserProfilePageState extends State<UserProfilePage> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Row(
-                    children: [
-                      Expanded(
-                        child: _buildStatCard(
-                          "Traveler Type",
-                          role,
-                          Icons.luggage_outlined,
-                          AppColors.accent,
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: _buildStatCard(
-                          "Home Base",
-                          city,
-                          Icons.location_on_outlined,
-                          AppColors.secondary,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 18),
                   _buildSectionCard(
                     title: "Traveler Details",
-                    subtitle:
-                        "A clean profile card styled for a modern tourism app.",
+                    subtitle: "Your core travel identity and contact details.",
                     child: Column(
                       children: [
                         _buildInfoRow(Icons.person_outline, "Full Name", name),
-                        _buildInfoRow(Icons.email_outlined, "Email", email),
                         _buildInfoRow(
-                          Icons.location_city_outlined,
-                          "City",
+                          Icons.badge_outlined,
+                          "Traveler Type",
+                          role,
+                        ),
+                        _buildInfoRow(
+                          Icons.location_on_outlined,
+                          "Home Base Location",
                           city,
                         ),
                         _buildInfoRow(
-                          Icons.badge_outlined,
+                          Icons.translate_outlined,
+                          "Languages",
+                          languages.isEmpty
+                              ? "No languages added"
+                              : languages.join(", "),
+                        ),
+                        _buildInfoRow(Icons.call_outlined, "Number", phone),
+                        _buildInfoRow(Icons.email_outlined, "Email", email),
+                        _buildInfoRow(
+                          Icons.verified_user_outlined,
                           "Account Role",
                           role,
                           isLast: true,
@@ -246,25 +261,8 @@ class _UserProfilePageState extends State<UserProfilePage> {
                   ),
                   const SizedBox(height: 18),
                   _buildSectionCard(
-                    title: "Travel Mood",
-                    subtitle:
-                        "A little personality goes a long way on a travel profile.",
-                    child: Wrap(
-                      spacing: 10,
-                      runSpacing: 10,
-                      children: [
-                        _buildTag("City escapes"),
-                        _buildTag("Food trails"),
-                        _buildTag("Weekend plans"),
-                        _buildTag("Culture lover"),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 18),
-                  _buildSectionCard(
                     title: "Quick Actions",
-                    subtitle:
-                        "Useful actions presented like a travel dashboard, not a plain settings page.",
+                    subtitle: "Manage your account and bookings from here.",
                     child: Column(
                       children: [
                         _buildActionTile(
@@ -272,13 +270,7 @@ class _UserProfilePageState extends State<UserProfilePage> {
                           title: "Edit Profile",
                           subtitle: "Update your public traveler details",
                           accent: AppColors.accent,
-                          onTap: () {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text("Edit profile coming soon"),
-                              ),
-                            );
-                          },
+                          onTap: _openEditProfile,
                         ),
                         const SizedBox(height: 12),
                         _buildActionTile(
@@ -324,6 +316,13 @@ class _UserProfilePageState extends State<UserProfilePage> {
     );
   }
 
+  String? _resolveProfileImage(String value) {
+    final trimmed = value.trim();
+    if (trimmed.isEmpty) return null;
+    if (trimmed.startsWith('http')) return trimmed;
+    return "${ApiConfig.rootUrl}/uploads/$trimmed";
+  }
+
   String _formatRole(dynamic roleValue) {
     final role = (roleValue ?? 'user').toString().trim();
     if (role.isEmpty) return 'Traveler';
@@ -348,71 +347,6 @@ class _UserProfilePageState extends State<UserProfilePage> {
       width: size,
       height: size,
       decoration: BoxDecoration(shape: BoxShape.circle, color: color),
-    );
-  }
-
-  Widget _buildHeroChip(IconData icon, String text) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
-      decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.14),
-        borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.15)),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 16, color: Colors.white),
-          const SizedBox(width: 6),
-          Text(
-            text,
-            style: const TextStyle(color: Colors.white, fontSize: 12.5),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildStatCard(
-    String title,
-    String value,
-    IconData icon,
-    Color accent,
-  ) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(22),
-        boxShadow: [
-          BoxShadow(
-            color: Color(0x3D000000),
-            blurRadius: 18,
-            offset: Offset(0, 8),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            width: 42,
-            height: 42,
-            decoration: BoxDecoration(
-              color: accent.withValues(alpha: 0.12),
-              borderRadius: BorderRadius.circular(14),
-            ),
-            child: Icon(icon, color: accent),
-          ),
-          const SizedBox(height: 14),
-          Text(title, style: const TextStyle(fontSize: 12, color: AppColors.textMuted)),
-          const SizedBox(height: 6),
-          Text(
-            value,
-            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
-          ),
-        ],
-      ),
     );
   }
 
@@ -486,7 +420,10 @@ class _UserProfilePageState extends State<UserProfilePage> {
               children: [
                 Text(
                   label,
-                  style: const TextStyle(fontSize: 12, color: AppColors.textMuted),
+                  style: const TextStyle(
+                    fontSize: 12,
+                    color: AppColors.textMuted,
+                  ),
                 ),
                 const SizedBox(height: 4),
                 Text(
@@ -500,24 +437,6 @@ class _UserProfilePageState extends State<UserProfilePage> {
             ),
           ),
         ],
-      ),
-    );
-  }
-
-  Widget _buildTag(String text) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
-      decoration: BoxDecoration(
-        color: AppColors.mutedSurface,
-        borderRadius: BorderRadius.circular(999),
-      ),
-      child: Text(
-        text,
-        style: const TextStyle(
-          fontSize: 13,
-          fontWeight: FontWeight.w600,
-          color: AppColors.secondary,
-        ),
       ),
     );
   }
@@ -565,12 +484,19 @@ class _UserProfilePageState extends State<UserProfilePage> {
                   const SizedBox(height: 2),
                   Text(
                     subtitle,
-                    style: const TextStyle(fontSize: 12.5, color: AppColors.textMuted),
+                    style: const TextStyle(
+                      fontSize: 12.5,
+                      color: AppColors.textMuted,
+                    ),
                   ),
                 ],
               ),
             ),
-            const Icon(Icons.arrow_forward_ios, size: 16, color: AppColors.textMuted),
+            const Icon(
+              Icons.arrow_forward_ios,
+              size: 16,
+              color: AppColors.textMuted,
+            ),
           ],
         ),
       ),

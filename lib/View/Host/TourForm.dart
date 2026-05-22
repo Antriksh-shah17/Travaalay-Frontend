@@ -32,7 +32,7 @@ class _TourFormState extends State<TourForm> {
   ];
 
   bool _isSubmitting = false;
-  File? _selectedImage;
+  List<File> _selectedImages = [];
   DateTime? selectedDate;
   TimeOfDay? selectedTime;
 
@@ -78,34 +78,43 @@ class _TourFormState extends State<TourForm> {
     }
   }
 
-  Future<void> pickImage() async {
+  Future<void> pickImages() async {
     final picker = ImagePicker();
-    final pickedFile = await picker.pickImage(source: ImageSource.gallery);
-    if (pickedFile != null) {
-      setState(() => _selectedImage = File(pickedFile.path));
+    final pickedFiles = await picker.pickMultiImage();
+    if (pickedFiles.isNotEmpty) {
+      setState(() {
+        _selectedImages = pickedFiles.map((file) => File(file.path)).toList();
+      });
     }
   }
 
-  Future<String> _uploadImage() async {
-    if (_selectedImage == null) return '';
+  Future<List<String>> _uploadImages() async {
+    if (_selectedImages.isEmpty) return [];
 
-    final uploadRequest = http.MultipartRequest(
-      'POST',
-      Uri.parse('${ApiConfig.apiBaseUrl}/upload'),
-    );
-    uploadRequest.files.add(
-      await http.MultipartFile.fromPath('image', _selectedImage!.path),
-    );
+    final uploadedPaths = <String>[];
+    for (final image in _selectedImages) {
+      final uploadRequest = http.MultipartRequest(
+        'POST',
+        Uri.parse('${ApiConfig.apiBaseUrl}/upload'),
+      );
+      uploadRequest.files.add(
+        await http.MultipartFile.fromPath('image', image.path),
+      );
 
-    final response = await uploadRequest.send();
-    final body = await response.stream.bytesToString();
+      final response = await uploadRequest.send();
+      final body = await response.stream.bytesToString();
 
-    if (response.statusCode != 200) {
-      throw Exception('Image upload failed');
+      if (response.statusCode != 200) {
+        throw Exception('Image upload failed');
+      }
+
+      final data = jsonDecode(body) as Map<String, dynamic>;
+      uploadedPaths.add(
+        (data['imagePath'] ?? '').toString().replaceFirst('/uploads/', ''),
+      );
     }
 
-    final data = jsonDecode(body) as Map<String, dynamic>;
-    return (data['imagePath'] ?? '').toString().replaceFirst('/uploads/', '');
+    return uploadedPaths;
   }
 
   Future<void> submitForm() async {
@@ -113,7 +122,7 @@ class _TourFormState extends State<TourForm> {
         description.text.isEmpty ||
         price.text.isEmpty ||
         location.text.isEmpty ||
-        _selectedImage == null) {
+        _selectedImages.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text("Please fill all required fields")),
       );
@@ -124,7 +133,7 @@ class _TourFormState extends State<TourForm> {
 
     try {
       final eventTime = selectedTime?.format(context) ?? "";
-      final imagePath = await _uploadImage();
+      final imagePaths = await _uploadImages();
       final extraDetails = [
         if (duration.text.trim().isNotEmpty)
           "Duration: ${duration.text.trim()}",
@@ -145,7 +154,7 @@ class _TourFormState extends State<TourForm> {
         "location": location.text.trim(),
         "event_date": selectedDate?.toIso8601String(),
         "event_time": eventTime,
-        "imageUrl": imagePath,
+        "imageUrl": jsonEncode(imagePaths),
       };
 
       final response = await http.post(
@@ -167,7 +176,7 @@ class _TourFormState extends State<TourForm> {
         highlights.clear();
         location.text = (widget.user['city'] ?? '').toString();
         setState(() {
-          _selectedImage = null;
+          _selectedImages = [];
           selectedDate = null;
           selectedTime = null;
         });
@@ -232,20 +241,36 @@ class _TourFormState extends State<TourForm> {
           _textField("Highlights", highlights, maxLines: 2),
           const SizedBox(height: 12),
           GestureDetector(
-            onTap: pickImage,
+            onTap: pickImages,
             child: Container(
-              height: 180,
+              height: 190,
               width: double.infinity,
               decoration: BoxDecoration(
                 border: Border.all(color: Colors.grey),
                 borderRadius: BorderRadius.circular(12),
               ),
-              child: _selectedImage != null
-                  ? ClipRRect(
-                      borderRadius: BorderRadius.circular(12),
-                      child: Image.file(_selectedImage!, fit: BoxFit.cover),
+              child: _selectedImages.isNotEmpty
+                  ? Padding(
+                      padding: const EdgeInsets.all(10),
+                      child: Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: _selectedImages
+                            .map(
+                              (image) => ClipRRect(
+                                borderRadius: BorderRadius.circular(10),
+                                child: Image.file(
+                                  image,
+                                  width: 94,
+                                  height: 78,
+                                  fit: BoxFit.cover,
+                                ),
+                              ),
+                            )
+                            .toList(),
+                      ),
                     )
-                  : const Center(child: Text("Tap to upload package image")),
+                  : const Center(child: Text("Tap to upload package images")),
             ),
           ),
           const SizedBox(height: 12),

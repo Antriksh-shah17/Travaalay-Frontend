@@ -42,7 +42,6 @@ class _PackageScreenState extends State<PackageScreen>
       ),
       body: Column(
         children: [
-          // ✅ TabBar below AppBar
           Material(
             color: AppColors.surface,
             child: TabBar(
@@ -57,7 +56,6 @@ class _PackageScreenState extends State<PackageScreen>
               ],
             ),
           ),
-          // ✅ Tab content
           Expanded(
             child: TabBarView(
               controller: _tabController,

@@ -37,7 +37,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text("Admin Dashboard - ${widget.user['name']}"), // <-- use widget.user
+        title: Text("Admin Dashboard"), // <-- use widget.user
         actions: [
           IconButton(
             icon: const Icon(Icons.logout),

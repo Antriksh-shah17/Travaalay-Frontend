@@ -46,7 +46,6 @@ class _TranslatorMatchingPageState extends State<TranslatorMatchingPage> {
   static const double WEIGHT_DISTANCE = 0.2;
   static const double WEIGHT_PRICE = 0.15;
   static const double WEIGHT_RATING = 0.1;
-  static const double WEIGHT_EXPERIENCE = 0.15;
   static const double WEIGHT_CERTIFIED = 0.1;
 
   static const double MAX_DISTANCE_KM = 50;
@@ -167,11 +166,6 @@ class _TranslatorMatchingPageState extends State<TranslatorMatchingPage> {
                 ? reviews.reduce((a, b) => a + b) / reviews.length / 5
                 : 0.5;
 
-            final experienceYears =
-                double.tryParse(guide['experience_years']?.toString() ?? '2') ??
-                2;
-            final expScore = Math.min(experienceYears / 5, 1);
-
             final isVerified = _asBool(guide['verified']);
             final certScore = isVerified ? 1.0 : 0.5;
             final cityScore =
@@ -200,7 +194,6 @@ class _TranslatorMatchingPageState extends State<TranslatorMatchingPage> {
                 (distScore * WEIGHT_DISTANCE +
                         priceScore * WEIGHT_PRICE +
                         ratingScore * WEIGHT_RATING +
-                        expScore * WEIGHT_EXPERIENCE +
                         certScore * WEIGHT_CERTIFIED +
                         cityScore * 0.1)
                     .toStringAsFixed(3),
@@ -210,7 +203,6 @@ class _TranslatorMatchingPageState extends State<TranslatorMatchingPage> {
                 'dist': (distScore * WEIGHT_DISTANCE).toStringAsFixed(3),
                 'price': (priceScore * WEIGHT_PRICE).toStringAsFixed(3),
                 'rating': (ratingScore * WEIGHT_RATING).toStringAsFixed(3),
-                'exp': (expScore * WEIGHT_EXPERIENCE).toStringAsFixed(3),
                 'cert': (certScore * WEIGHT_CERTIFIED).toStringAsFixed(3),
               },
             });
@@ -221,7 +213,6 @@ class _TranslatorMatchingPageState extends State<TranslatorMatchingPage> {
                 distScore * WEIGHT_DISTANCE +
                 priceScore * WEIGHT_PRICE +
                 ratingScore * WEIGHT_RATING +
-                expScore * WEIGHT_EXPERIENCE +
                 certScore * WEIGHT_CERTIFIED +
                 cityScore * 0.1);
 
@@ -233,7 +224,6 @@ class _TranslatorMatchingPageState extends State<TranslatorMatchingPage> {
                 'dist': (distScore * WEIGHT_DISTANCE).toStringAsFixed(3),
                 'price': (priceScore * WEIGHT_PRICE).toStringAsFixed(3),
                 'rating': (ratingScore * WEIGHT_RATING).toStringAsFixed(3),
-                'exp': (expScore * WEIGHT_EXPERIENCE).toStringAsFixed(3),
                 'cert': (certScore * WEIGHT_CERTIFIED).toStringAsFixed(3),
               },
             });
@@ -485,7 +475,6 @@ class _TranslatorMatchingPageState extends State<TranslatorMatchingPage> {
   }
 
   Widget _buildGuideCard(Map<String, dynamic> guide, int rank) {
-    final breakdown = guide['breakdown'] as Map<String, dynamic>;
     final score = guide['score'] as double;
     final imageUrl = (guide['profileImage'] as String?) ?? '';
 
@@ -662,27 +651,6 @@ class _TranslatorMatchingPageState extends State<TranslatorMatchingPage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: AppColors.primaryLight,
-                    borderRadius: BorderRadius.circular(18),
-                    border: Border.all(color: AppColors.border),
-                  ),
-                  child: Wrap(
-                    spacing: 10,
-                    runSpacing: 10,
-                    children: [
-                      _scoreChip("Lang", breakdown['lang']),
-                      _scoreChip("Dist", breakdown['dist']),
-                      _scoreChip("Price", breakdown['price']),
-                      _scoreChip("Rating", breakdown['rating']),
-                      _scoreChip("Exp", breakdown['exp']),
-                      _scoreChip("Cert", breakdown['cert']),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 12),
                 Text(
                   (guide['bio'] as String).trim().isEmpty
                       ? 'Local translator available for guided travel support.'
@@ -747,40 +715,6 @@ class _TranslatorMatchingPageState extends State<TranslatorMatchingPage> {
                   ],
                 ),
               ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _scoreChip(String label, String score) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: AppColors.border),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text(
-            label,
-            style: const TextStyle(
-              fontSize: 10,
-              fontWeight: FontWeight.bold,
-              color: AppColors.textMuted,
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            score,
-            style: const TextStyle(
-              fontSize: 12,
-              color: AppColors.secondary,
-              fontWeight: FontWeight.w700,
             ),
           ),
         ],
@@ -1018,34 +952,109 @@ class _TranslatorMatchingPageState extends State<TranslatorMatchingPage> {
                   onSubmitted: (_) => fetchAndMatchTranslators(),
                 ),
                 const SizedBox(height: 12),
-                Row(
-                  children: [
-                    const Icon(
-                      Icons.currency_rupee,
-                      size: 18,
-                      color: AppColors.secondary,
-                    ),
-                    const SizedBox(width: 6),
-                    Text(
-                      "Budget up to ₹${_selectedBudget.toStringAsFixed(0)}/hr",
-                      style: const TextStyle(
-                        fontWeight: FontWeight.w600,
-                        color: AppColors.textPrimary,
+                Container(
+                  padding: const EdgeInsets.fromLTRB(14, 14, 14, 10),
+                  decoration: BoxDecoration(
+                    color: AppColors.primaryLight,
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(color: AppColors.border),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Container(
+                            width: 38,
+                            height: 38,
+                            decoration: BoxDecoration(
+                              color: AppColors.secondary.withValues(
+                                alpha: 0.16,
+                              ),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: const Icon(
+                              Icons.currency_rupee,
+                              color: AppColors.secondary,
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Text(
+                                  "Budget",
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: AppColors.textMuted,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  "Up to ₹${_selectedBudget.toStringAsFixed(0)}/hr",
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.w700,
+                                    fontSize: 16,
+                                    color: AppColors.textPrimary,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
                       ),
-                    ),
-                  ],
+                      const SizedBox(height: 12),
+                      SliderTheme(
+                        data: SliderTheme.of(context).copyWith(
+                          activeTrackColor: AppColors.secondary,
+                          inactiveTrackColor: AppColors.border,
+                          thumbColor: AppColors.secondary,
+                          overlayColor: AppColors.secondary.withValues(
+                            alpha: 0.14,
+                          ),
+                          trackHeight: 5,
+                        ),
+                        child: Slider(
+                          value: _selectedBudget,
+                          min: 100,
+                          max: 5000,
+                          divisions: 49,
+                          label: _selectedBudget.toStringAsFixed(0),
+                          onChanged: (value) {
+                            setState(() => _selectedBudget = value);
+                          },
+                        ),
+                      ),
+                      const Padding(
+                        padding: EdgeInsets.symmetric(horizontal: 4),
+                        child: Row(
+                          children: [
+                            Text(
+                              "₹100",
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: AppColors.textMuted,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                            Spacer(),
+                            Text(
+                              "₹5000",
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: AppColors.textMuted,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-                Slider(
-                  value: _selectedBudget,
-                  min: 100,
-                  max: 1000,
-                  divisions: 18,
-                  label: _selectedBudget.toStringAsFixed(0),
-                  onChanged: (value) {
-                    setState(() => _selectedBudget = value);
-                  },
-                ),
-                const SizedBox(height: 4),
+                const SizedBox(height: 10),
                 const Text(
                   "Preferred Languages",
                   style: TextStyle(

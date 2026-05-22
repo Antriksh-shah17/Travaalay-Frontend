@@ -7,20 +7,15 @@ class AdminVerificationScreen extends StatefulWidget {
   const AdminVerificationScreen({super.key});
 
   @override
-  State<AdminVerificationScreen> createState() => _AdminVerificationScreenState();
+  State<AdminVerificationScreen> createState() =>
+      _AdminVerificationScreenState();
 }
 
 class _AdminVerificationScreenState extends State<AdminVerificationScreen> {
   List<dynamic> _requests = [];
   bool _isLoading = true;
-  
-  // Helper to dynamically get the root URL to load images 
-  String get rootUrl {
-    if (ApiConfig.translatorsBaseUrl.contains('/api')) {
-      return ApiConfig.translatorsBaseUrl.split('/api')[0];
-    }
-    return 'http://localhost:5000';
-  }
+
+  String get rootUrl => ApiConfig.rootUrl;
 
   @override
   void initState() {
@@ -31,7 +26,9 @@ class _AdminVerificationScreenState extends State<AdminVerificationScreen> {
   Future<void> _fetchRequests() async {
     setState(() => _isLoading = true);
     try {
-      final response = await http.get(Uri.parse('${ApiConfig.translatorsBaseUrl}/requests'));
+      final response = await http.get(
+        Uri.parse('${ApiConfig.translatorsBaseUrl}/requests'),
+      );
       if (response.statusCode == 200) {
         setState(() {
           _requests = jsonDecode(response.body);
@@ -52,8 +49,10 @@ class _AdminVerificationScreenState extends State<AdminVerificationScreen> {
     );
 
     try {
-      final response = await http.get(Uri.parse('${ApiConfig.translatorsBaseUrl}/documents/$translatorId'));
-      
+      final response = await http.get(
+        Uri.parse('${ApiConfig.translatorsBaseUrl}/documents/$translatorId'),
+      );
+
       if (!mounted) return;
       Navigator.pop(context); // Close loading
 
@@ -61,13 +60,17 @@ class _AdminVerificationScreenState extends State<AdminVerificationScreen> {
         final List<dynamic> documents = jsonDecode(response.body);
         _showReviewDialog(documents, requestId);
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Failed to load documents.')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Failed to load documents.')),
+        );
       }
     } catch (e) {
       if (!mounted) return;
       Navigator.pop(context);
       print('Error fetching documents: $e');
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Error loading documents.')));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Error loading documents.')));
     }
   }
 
@@ -81,13 +84,15 @@ class _AdminVerificationScreenState extends State<AdminVerificationScreen> {
             width: double.maxFinite,
             height: 400,
             child: documents.isEmpty
-                ? const Center(child: Text("No documents uploaded by this user."))
+                ? const Center(
+                    child: Text("No documents uploaded by this user."),
+                  )
                 : ListView.builder(
                     itemCount: documents.length,
                     itemBuilder: (context, index) {
                       final doc = documents[index];
                       final imageUrl = "$rootUrl${doc['file_url']}";
-                      
+
                       return Card(
                         margin: const EdgeInsets.only(bottom: 16),
                         child: Padding(
@@ -97,7 +102,10 @@ class _AdminVerificationScreenState extends State<AdminVerificationScreen> {
                             children: [
                               Text(
                                 doc['document_type'] ?? 'Document',
-                                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 16,
+                                ),
                               ),
                               const SizedBox(height: 8),
                               ClipRRect(
@@ -107,19 +115,30 @@ class _AdminVerificationScreenState extends State<AdminVerificationScreen> {
                                   height: 250,
                                   width: double.infinity,
                                   fit: BoxFit.cover,
-                                  errorBuilder: (context, error, stackTrace) => Container(
-                                    height: 250,
-                                    width: double.infinity,
-                                    color: Colors.grey[200],
-                                    child: const Column(
-                                      mainAxisAlignment: MainAxisAlignment.center,
-                                      children: [
-                                        Icon(Icons.broken_image, size: 50, color: Colors.grey),
-                                        SizedBox(height: 8),
-                                        Text('Image not available', style: TextStyle(color: Colors.grey)),
-                                      ],
-                                    ),
-                                  ),
+                                  errorBuilder: (context, error, stackTrace) =>
+                                      Container(
+                                        height: 250,
+                                        width: double.infinity,
+                                        color: Colors.grey[200],
+                                        child: const Column(
+                                          mainAxisAlignment:
+                                              MainAxisAlignment.center,
+                                          children: [
+                                            Icon(
+                                              Icons.broken_image,
+                                              size: 50,
+                                              color: Colors.grey,
+                                            ),
+                                            SizedBox(height: 8),
+                                            Text(
+                                              'Image not available',
+                                              style: TextStyle(
+                                                color: Colors.grey,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
                                 ),
                               ),
                             ],
@@ -140,7 +159,10 @@ class _AdminVerificationScreenState extends State<AdminVerificationScreen> {
                 Navigator.pop(context);
                 _updateStatus(requestId, 'rejected');
               },
-              child: const Text('Reject', style: TextStyle(color: Colors.white)),
+              child: const Text(
+                'Reject',
+                style: TextStyle(color: Colors.white),
+              ),
             ),
             ElevatedButton(
               style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
@@ -148,7 +170,10 @@ class _AdminVerificationScreenState extends State<AdminVerificationScreen> {
                 Navigator.pop(context);
                 _updateStatus(requestId, 'approved');
               },
-              child: const Text('Approve', style: TextStyle(color: Colors.white)),
+              child: const Text(
+                'Approve',
+                style: TextStyle(color: Colors.white),
+              ),
             ),
           ],
         );
@@ -173,7 +198,9 @@ class _AdminVerificationScreenState extends State<AdminVerificationScreen> {
         );
         _fetchRequests();
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Failed to update status.')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Failed to update status.')),
+        );
       }
     } catch (e) {
       print('Error updating status: $e');
@@ -183,82 +210,93 @@ class _AdminVerificationScreenState extends State<AdminVerificationScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('User Verifications'),
-      ),
+      appBar: AppBar(title: const Text('User Verifications')),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : _requests.isEmpty
-              ? const Center(child: Text("No verification requests found."))
-              : RefreshIndicator(
-                  onRefresh: _fetchRequests,
-                  child: ListView.builder(
-                    padding: const EdgeInsets.all(16),
-                    itemCount: _requests.length,
-                    itemBuilder: (context, index) {
-                      final req = _requests[index];
-                      final status = req['status'] ?? 'pending';
-                      final isPending = status == 'pending';
+          ? const Center(child: Text("No verification requests found."))
+          : RefreshIndicator(
+              onRefresh: _fetchRequests,
+              child: ListView.builder(
+                padding: const EdgeInsets.all(16),
+                itemCount: _requests.length,
+                itemBuilder: (context, index) {
+                  final req = _requests[index];
+                  final status = req['status'] ?? 'pending';
+                  final isPending = status == 'pending';
 
-                      return Card(
-                        elevation: 2,
-                        margin: const EdgeInsets.only(bottom: 12),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                        child: ListTile(
-                          contentPadding: const EdgeInsets.all(16),
-                          title: Text(
-                            req['name'] ?? 'Unknown Translator',
-                            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
-                          ),
-                          subtitle: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              const SizedBox(height: 4),
-                              Text(
-                                "Role: ${(req['role'] ?? 'Translator').toString().toUpperCase()}",
-                                style: TextStyle(fontWeight: FontWeight.bold, color: Theme.of(context).colorScheme.primary),
-                              ),
-                              const SizedBox(height: 4),
-                              Text("Email: ${req['email'] ?? 'N/A'}"),
-                              Text("City: ${req['city'] ?? 'N/A'}"),
-                              const SizedBox(height: 8),
-                              Chip(
-                                label: Text(
-                                  status.toUpperCase(),
-                                  style: TextStyle(
-                                    color: isPending
-                                        ? Colors.orange.shade800
-                                        : status == 'approved'
-                                            ? Colors.green.shade800
-                                            : Colors.red.shade800,
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                                backgroundColor: isPending
-                                    ? Colors.orange.shade100
-                                    : status == 'approved'
-                                        ? Colors.green.shade100
-                                        : Colors.red.shade100,
-                                side: BorderSide.none,
-                              ),
-                            ],
-                          ),
-                          trailing: ElevatedButton.icon(
-                            onPressed: () => _viewDocuments(req['translator_id'], req['id']),
-                            icon: const Icon(Icons.folder_shared, size: 18),
-                            label: Text(isPending ? "Review" : "View Docs"),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Theme.of(context).colorScheme.primaryContainer,
-                              foregroundColor: Theme.of(context).colorScheme.primary,
-                              elevation: 0,
+                  return Card(
+                    elevation: 2,
+                    margin: const EdgeInsets.only(bottom: 12),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: ListTile(
+                      contentPadding: const EdgeInsets.all(16),
+                      title: Text(
+                        req['name'] ?? 'Unknown Translator',
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 18,
+                        ),
+                      ),
+                      subtitle: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const SizedBox(height: 4),
+                          Text(
+                            "Role: ${(req['role'] ?? 'Translator').toString().toUpperCase()}",
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              color: Theme.of(context).colorScheme.primary,
                             ),
                           ),
+                          const SizedBox(height: 4),
+                          Text("Email: ${req['email'] ?? 'N/A'}"),
+                          Text("City: ${req['city'] ?? 'N/A'}"),
+                          const SizedBox(height: 8),
+                          Chip(
+                            label: Text(
+                              status.toUpperCase(),
+                              style: TextStyle(
+                                color: isPending
+                                    ? Colors.orange.shade800
+                                    : status == 'approved'
+                                    ? Colors.green.shade800
+                                    : Colors.red.shade800,
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            backgroundColor: isPending
+                                ? Colors.orange.shade100
+                                : status == 'approved'
+                                ? Colors.green.shade100
+                                : Colors.red.shade100,
+                            side: BorderSide.none,
+                          ),
+                        ],
+                      ),
+                      trailing: ElevatedButton.icon(
+                        onPressed: () =>
+                            _viewDocuments(req['translator_id'], req['id']),
+                        icon: const Icon(Icons.folder_shared, size: 18),
+                        label: Text(isPending ? "Review" : "View Docs"),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Theme.of(
+                            context,
+                          ).colorScheme.primaryContainer,
+                          foregroundColor: Theme.of(
+                            context,
+                          ).colorScheme.primary,
+                          elevation: 0,
                         ),
-                      );
-                    },
-                  ),
-                ),
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
     );
   }
 }

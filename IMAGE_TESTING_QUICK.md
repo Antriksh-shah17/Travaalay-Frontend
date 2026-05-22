@@ -50,7 +50,7 @@ flutter run -v
 
 ### Step 1: Check Backend Response
 ```bash
-curl -X POST https://wnn3xmpd-5000.inc1.devtunnels.ms/api/travai \
+curl -X POST https://wnn3xmpd-5000.inc1.devtunnels.ms/travai \
   -H 'Content-Type: application/json' \
   -d '{"city":"Mumbai","days":2}' | jq '.itinerary.days[0].places[0]'
 ```

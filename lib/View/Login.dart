@@ -1,7 +1,5 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
-
 import 'package:http/http.dart' as http;
 import 'package:traavaalay/View/Admin/AdminDashboard.dart';
 import 'package:traavaalay/View/Host/Host_Dashboard.dart';
@@ -93,9 +91,27 @@ class _LoginScreenState extends State<LoginScreen> {
     } catch (e) {
       setState(() => loading = false);
       print('🔴 Exception during login: $e');
+      final errorText = e.toString();
+      final isHostLookupFailure = errorText.contains('Failed host lookup');
+      final isTimeout = errorText.contains('TimeoutException');
+      final isConnectionFailure =
+          errorText.contains('Connection failed') ||
+          errorText.contains('Network is unreachable');
+      final isAndroidEmulatorHost = ApiConfig.rootUrl.contains('10.0.2.2');
+
+      final message = isHostLookupFailure
+          ? 'Unable to reach backend at ${ApiConfig.rootUrl}. If you are using ngrok, restart the tunnel and update BACKEND_URL. For local Android emulator use http://10.0.2.2:5000.'
+          : isConnectionFailure && isAndroidEmulatorHost
+          ? 'Cannot reach ${ApiConfig.rootUrl}. `10.0.2.2` only works on the Android emulator. If you are on a real phone, run with BACKEND_URL=http://<your-computer-LAN-IP>:5000 or use a fresh ngrok URL.'
+          : isConnectionFailure
+          ? 'Cannot reach backend at ${ApiConfig.rootUrl}. Make sure the Node server is running and the device can access that host and port.'
+          : isTimeout
+          ? 'Server timed out at ${ApiConfig.rootUrl}. Make sure the backend is running and reachable.'
+          : "Login failed: $e";
+
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(SnackBar(content: Text("Login failed: $e")));
+      ).showSnackBar(SnackBar(content: Text(message)));
     }
   }
 
@@ -126,22 +142,26 @@ class _LoginScreenState extends State<LoginScreen> {
               ActionChip(
                 label: const Text("User"),
                 avatar: const Icon(Icons.person, size: 16),
-                onPressed: () => fillAndLogin('rajesh.kumar@example.com', 'password123'),
+                onPressed: () =>
+                    fillAndLogin('rajesh.kumar@example.com', 'password123'),
               ),
               ActionChip(
                 label: const Text("Translator"),
                 avatar: const Icon(Icons.translate, size: 16),
-                onPressed: () => fillAndLogin('amit.singh@example.com', 'password123'),
+                onPressed: () =>
+                    fillAndLogin('amit.singh@example.com', 'password123'),
               ),
               ActionChip(
                 label: const Text("Host"),
                 avatar: const Icon(Icons.home, size: 16),
-                onPressed: () => fillAndLogin('vikram.joshi@example.com', 'password123'),
+                onPressed: () =>
+                    fillAndLogin('vikram.joshi@example.com', 'password123'),
               ),
               ActionChip(
                 label: const Text("Admin"),
                 avatar: const Icon(Icons.admin_panel_settings, size: 16),
-                onPressed: () => fillAndLogin('admin@travaalay.com', 'password123'),
+                onPressed: () =>
+                    fillAndLogin('admin@travaalay.com', 'password123'),
               ),
             ],
           ),
@@ -199,11 +219,16 @@ class _LoginScreenState extends State<LoginScreen> {
                     ? const CircularProgressIndicator(color: Colors.white)
                     : const Text(
                         "Login",
-                        style: TextStyle(color: Colors.white, fontSize: 16),
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 15.5,
+                          fontWeight: FontWeight.w600,
+                        ),
                       ),
                 style: ElevatedButton.styleFrom(
                   minimumSize: const Size(double.infinity, 50),
-                  backgroundColor: Theme.of(context).colorScheme.primary,
+                  backgroundColor: AppColors.secondary,
+                  foregroundColor: AppColors.primary,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
                   ),
@@ -226,9 +251,9 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                 ),
               ),
-            
-            // Fast Login buttons for development
-            _buildFastLoginButtons(emailController, passwordController),
+
+              // Fast Login buttons for development
+              _buildFastLoginButtons(emailController, passwordController),
             ],
           ),
         ),

@@ -8,11 +8,13 @@ import 'package:video_player/video_player.dart';
 class EventSlider extends StatefulWidget {
   final List<Event> events;
   final List<String> defaultMedia;
+  final ValueChanged<Event>? onSlideTap;
 
   const EventSlider({
     super.key,
     required this.events,
     required this.defaultMedia,
+    this.onSlideTap,
   });
 
   @override
@@ -117,97 +119,102 @@ class _EventSliderState extends State<EventSlider> {
   Widget build(BuildContext context) {
     final slides = _slides;
 
-    return Column(
-      children: [
-        CarouselSlider.builder(
-          itemCount: slides.length,
-          itemBuilder: (context, index, realIndex) {
-            final slide = slides[index];
+    return CarouselSlider.builder(
+      itemCount: slides.length,
+      itemBuilder: (context, index, realIndex) {
+        final slide = slides[index];
 
-            return ClipRRect(
-              borderRadius: BorderRadius.circular(18),
-              child: Stack(
-                fit: StackFit.expand,
-                children: [
-                  _MediaSlide(
-                    mediaPath: slide.mediaPath,
-                    controller: _videoControllers[slide.mediaPath],
-                  ),
-                  Container(
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        begin: Alignment.topCenter,
-                        end: Alignment.bottomCenter,
-                        colors: [
-                          Colors.black.withValues(alpha: 0.04),
-                          Colors.black.withValues(alpha: 0.55),
-                        ],
-                      ),
+        return GestureDetector(
+          onTap: widget.onSlideTap == null
+              ? null
+              : () => widget.onSlideTap!(slide),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(18),
+            child: Stack(
+              fit: StackFit.expand,
+              children: [
+                _MediaSlide(
+                  mediaPath: slide.mediaPath,
+                  controller: _videoControllers[slide.mediaPath],
+                ),
+                Container(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [
+                        Colors.black.withValues(alpha: 0.04),
+                        Colors.black.withValues(alpha: 0.55),
+                      ],
                     ),
                   ),
-                  if (slide.title.isNotEmpty)
-                    Positioned(
-                      left: 16,
-                      right: 16,
-                      bottom: 16,
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            slide.title,
-                            style: const TextStyle(
-                              fontSize: 20,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.white,
-                            ),
+                ),
+                if (slide.title.isNotEmpty)
+                  Positioned(
+                    left: 16,
+                    right: 16,
+                    bottom: 16,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          slide.title,
+                          style: const TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
                           ),
-                          const SizedBox(height: 4),
-                          Text(
-                            DateFormat('dd MMM yyyy').format(slide.date),
-                            style: const TextStyle(
-                              fontSize: 14,
-                              color: Colors.white70,
-                            ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          DateFormat('dd MMM yyyy').format(slide.date),
+                          style: const TextStyle(
+                            fontSize: 14,
+                            color: Colors.white70,
                           ),
-                        ],
-                      ),
+                        ),
+                      ],
                     ),
-                ],
-              ),
-            );
-          },
-          options: CarouselOptions(
-            height: 300,
-            viewportFraction: 1,
-            autoPlay: true,
-            autoPlayInterval: const Duration(seconds: 4),
-            onPageChanged: (index, reason) {
-              setState(() {
-                _currentIndex = index;
-              });
-              _updatePlayback();
-            },
+                  ),
+                Positioned(
+                  left: 0,
+                  right: 0,
+                  bottom: slide.title.isNotEmpty ? 72 : 12,
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: List.generate(slides.length, (dotIndex) {
+                      return AnimatedContainer(
+                        duration: const Duration(milliseconds: 220),
+                        width: _currentIndex == dotIndex ? 14 : 6,
+                        height: 6,
+                        margin: const EdgeInsets.symmetric(horizontal: 3),
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(999),
+                          color: _currentIndex == dotIndex
+                              ? AppColors.secondary
+                              : Colors.white.withValues(alpha: 0.5),
+                        ),
+                      );
+                    }),
+                  ),
+                ),
+              ],
+            ),
           ),
-        ),
-        const SizedBox(height: 10),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: List.generate(slides.length, (index) {
-            return AnimatedContainer(
-              duration: const Duration(milliseconds: 220),
-              width: _currentIndex == index ? 20 : 10,
-              height: 10,
-              margin: const EdgeInsets.symmetric(horizontal: 4),
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(999),
-                color: _currentIndex == index
-                    ? AppColors.secondary
-                    : AppColors.textMuted,
-              ),
-            );
-          }),
-        ),
-      ],
+        );
+      },
+      options: CarouselOptions(
+        height: 336,
+        viewportFraction: 1,
+        autoPlay: true,
+        autoPlayInterval: const Duration(seconds: 4),
+        onPageChanged: (index, reason) {
+          setState(() {
+            _currentIndex = index;
+          });
+          _updatePlayback();
+        },
+      ),
     );
   }
 }

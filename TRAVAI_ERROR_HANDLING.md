@@ -11,7 +11,7 @@ User sees itinerary as expected.
 
 **Console Log:**
 ```
-🔵 Calling TravAI API: https://wnn3xmpd-5000.inc1.devtunnels.ms/api/travai
+🔵 Calling TravAI API: https://wnn3xmpd-5000.inc1.devtunnels.ms/travai
 🟢 Response Status: 200
 ✅ Itinerary generated successfully
 ```
@@ -194,7 +194,7 @@ Updated baseUrl from HTTP to HTTPS:
 final String baseUrl = "http://wnn3xmpd-5000.inc1.devtunnels.ms/api";
 
 // ✅ After
-final String baseUrl = "https://wnn3xmpd-5000.inc1.devtunnels.ms/api";
+final String baseUrl = "https://wnn3xmpd-5000.inc1.devtunnels.ms";
 ```
 
 ---
@@ -225,7 +225,7 @@ User clicks "Generate Itinerary"
 
 ### ✅ Successful Request
 ```
-🔵 Calling TravAI API: https://wnn3xmpd-5000.inc1.devtunnels.ms/api/travai
+🔵 Calling TravAI API: https://wnn3xmpd-5000.inc1.devtunnels.ms/travai
 🔵 Request: city=Mumbai, days=5
 🟢 Response Status: 200
 🟢 Response Body: {"itinerary":{"days":[...]}}
@@ -234,7 +234,7 @@ User clicks "Generate Itinerary"
 
 ### ⚠️ Rate Limited (429)
 ```
-🔵 Calling TravAI API: https://wnn3xmpd-5000.inc1.devtunnels.ms/api/travai
+🔵 Calling TravAI API: https://wnn3xmpd-5000.inc1.devtunnels.ms/travai
 🔵 Request: city=Mumbai, days=5
 🟢 Response Status: 429
 🟢 Response Body: {"error":"Rate limit exceeded","statusCode":429,"retryAfter":60}
@@ -244,7 +244,7 @@ User clicks "Generate Itinerary"
 
 ### ❌ Service Unavailable (503)
 ```
-🔵 Calling TravAI API: https://wnn3xmpd-5000.inc1.devtunnels.ms/api/travai
+🔵 Calling TravAI API: https://wnn3xmpd-5000.inc1.devtunnels.ms/travai
 🔵 Request: city=Mumbai, days=5
 🟢 Response Status: 503
 🟢 Response Body: {"error":"AI service temporarily unavailable","statusCode":503,"retryAfter":300}
@@ -254,7 +254,7 @@ User clicks "Generate Itinerary"
 
 ### 🔴 Network Error
 ```
-🔵 Calling TravAI API: https://wnn3xmpd-5000.inc1.devtunnels.ms/api/travai
+🔵 Calling TravAI API: https://wnn3xmpd-5000.inc1.devtunnels.ms/travai
 🔵 Request: city=Mumbai, days=5
 🔴 Exception Type: ClientException
 🔴 Exception: Failed host lookup: 'wnn3xmpd-5000.inc1.devtunnels.ms'

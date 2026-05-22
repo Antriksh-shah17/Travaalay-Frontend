@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:traavaalay/config/api_config.dart';
+import 'package:traavaalay/theme/app_colors.dart';
 
 class AdminUsersPage extends StatefulWidget {
   const AdminUsersPage({super.key});
@@ -12,6 +13,7 @@ class AdminUsersPage extends StatefulWidget {
 
 class _AdminUsersPageState extends State<AdminUsersPage> {
   List<dynamic> _users = [];
+  int _totalBookings = 0;
   bool _isLoading = true;
 
   @override
@@ -23,10 +25,29 @@ class _AdminUsersPageState extends State<AdminUsersPage> {
   Future<void> _fetchUsers() async {
     setState(() => _isLoading = true);
     try {
-      final response = await http.get(Uri.parse('${ApiConfig.apiBaseUrl}/admin/users'));
-      if (response.statusCode == 200) {
+      final usersResponse = await http.get(
+        Uri.parse('${ApiConfig.apiBaseUrl}/admin/users'),
+      );
+      final translatorBookingsResponse = await http.get(
+        Uri.parse('${ApiConfig.apiBaseUrl}/admin/bookings/translators'),
+      );
+      final hostBookingsResponse = await http.get(
+        Uri.parse('${ApiConfig.apiBaseUrl}/admin/bookings/hosts'),
+      );
+
+      if (usersResponse.statusCode == 200) {
+        final users = jsonDecode(usersResponse.body) as List<dynamic>;
+        final translatorBookings = translatorBookingsResponse.statusCode == 200
+            ? jsonDecode(translatorBookingsResponse.body) as List<dynamic>
+            : const <dynamic>[];
+        final hostBookings = hostBookingsResponse.statusCode == 200
+            ? jsonDecode(hostBookingsResponse.body) as List<dynamic>
+            : const <dynamic>[];
+
+        if (!mounted) return;
         setState(() {
-          _users = jsonDecode(response.body);
+          _users = users;
+          _totalBookings = translatorBookings.length + hostBookings.length;
         });
       }
     } catch (e) {
@@ -38,55 +59,105 @@ class _AdminUsersPageState extends State<AdminUsersPage> {
 
   @override
   Widget build(BuildContext context) {
+    final int userCount = _users.where((user) {
+      final role = (user['role'] ?? 'user').toString().trim().toLowerCase();
+      return role == 'user';
+    }).length;
+    final int translatorCount = _users.where((user) {
+      final role = (user['role'] ?? '').toString().trim().toLowerCase();
+      return role == 'translator';
+    }).length;
+    final int hostCount = _users.where((user) {
+      final role = (user['role'] ?? '').toString().trim().toLowerCase();
+      return role == 'host';
+    }).length;
+    final int overallUsersCount = _users.length;
+
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : RefreshIndicator(
               onRefresh: _fetchUsers,
-              child: ListView.builder(
+              child: ListView(
                 padding: const EdgeInsets.all(16),
-                itemCount: _users.length,
-                itemBuilder: (context, index) {
-                  final user = _users[index];
-                  final role = (user['role'] ?? 'user').toString().toUpperCase();
-                  final bool isVerified = user['verified'] == 1 || user['verified'] == true;
-
-                  return Card(
-                    margin: const EdgeInsets.only(bottom: 12),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                    child: ListTile(
-                      contentPadding: const EdgeInsets.all(16),
-                      leading: CircleAvatar(
-                        backgroundColor: Theme.of(context).colorScheme.primaryContainer,
-                        child: Icon(
-                          role == 'HOST' ? Icons.home : role == 'TRANSLATOR' ? Icons.translate : Icons.person,
-                          color: Theme.of(context).colorScheme.primary,
-                        ),
+                children: [
+                  Wrap(
+                    spacing: 12,
+                    runSpacing: 12,
+                    children: [
+                      _buildStatCard(
+                        label: "Users",
+                        value: userCount.toString(),
+                        icon: Icons.person,
                       ),
-                      title: Row(
-                        children: [
-                          Text(user['name'] ?? 'Unknown', style: const TextStyle(fontWeight: FontWeight.bold)),
-                          if (isVerified) ...[
-                            const SizedBox(width: 6),
-                            Icon(Icons.verified, color: Theme.of(context).colorScheme.secondary, size: 18),
-                          ]
-                        ],
+                      _buildStatCard(
+                        label: "Translators",
+                        value: translatorCount.toString(),
+                        icon: Icons.translate,
                       ),
-                      subtitle: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const SizedBox(height: 4),
-                          Text(user['email'] ?? 'No email'),
-                          Text("City: ${user['city'] ?? 'Unknown'}"),
-                        ],
+                      _buildStatCard(
+                        label: "Host",
+                        value: hostCount.toString(),
+                        icon: Icons.home,
                       ),
-                      trailing: Chip(label: Text(role, style: const TextStyle(fontSize: 10))),
-                    ),
-                  );
-                },
+                      _buildStatCard(
+                        label: "Overall Users",
+                        value: overallUsersCount.toString(),
+                        icon: Icons.groups,
+                      ),
+                      _buildStatCard(
+                        label: "Total Bookings",
+                        value: _totalBookings.toString(),
+                        icon: Icons.book_online,
+                      ),
+                    ],
+                  ),
+                ],
               ),
             ),
+    );
+  }
+
+  Widget _buildStatCard({
+    required String label,
+    required String value,
+    required IconData icon,
+  }) {
+    return SizedBox(
+      width: 160,
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: AppColors.surface,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: AppColors.border),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Icon(icon, color: AppColors.secondary),
+            const SizedBox(height: 12),
+            Text(
+              value,
+              style: const TextStyle(
+                color: AppColors.textPrimary,
+                fontSize: 22,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              label,
+              style: const TextStyle(
+                color: AppColors.textMuted,
+                fontSize: 13,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

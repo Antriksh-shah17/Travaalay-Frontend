@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:ui';
 
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
@@ -7,8 +8,13 @@ import 'package:traavaalay/theme/app_colors.dart';
 
 class PackagesPage extends StatefulWidget {
   final Map<String, dynamic> user;
+  final String initialCategory;
 
-  const PackagesPage({super.key, required this.user});
+  const PackagesPage({
+    super.key,
+    required this.user,
+    this.initialCategory = 'Tour',
+  });
 
   @override
   State<PackagesPage> createState() => _PackagesPageState();
@@ -38,7 +44,7 @@ class _PackagesPageState extends State<PackagesPage> {
 
         setState(() {
           packages = data.map((packageData) {
-            final imageUrl = _resolvePackageImage(packageData['imageUrl']);
+            final imageUrls = _resolvePackageImages(packageData['imageUrl']);
 
             return {
               "id": packageData['id'],
@@ -46,7 +52,8 @@ class _PackagesPageState extends State<PackagesPage> {
               "title": (packageData['title'] ?? '').toString(),
               "description": (packageData['description'] ?? '').toString(),
               "price": packageData['price']?.toString() ?? '',
-              "imageUrl": imageUrl,
+              "imageUrl": imageUrls.isNotEmpty ? imageUrls.first : '',
+              "imageUrls": imageUrls,
               "location": (packageData['location'] ?? '').toString(),
               "telescopeProvided": packageData['telescopeProvided'],
               "bestViewingTime": (packageData['bestViewingTime'] ?? '')
@@ -85,6 +92,57 @@ class _PackagesPageState extends State<PackagesPage> {
     return "${ApiConfig.rootUrl}/uploads/$imagePath";
   }
 
+  List<String> _resolvePackageImages(dynamic imageValue) {
+    if (imageValue is List) {
+      return imageValue
+          .map(_resolvePackageImage)
+          .where((image) => image.isNotEmpty)
+          .toList();
+    }
+
+    final rawValue = (imageValue ?? '').toString().trim();
+    if (rawValue.isEmpty) {
+      return [];
+    }
+
+    dynamic decodedValue = rawValue;
+    if (rawValue.startsWith('[') ||
+        (rawValue.startsWith('"[') && rawValue.endsWith(']"'))) {
+      try {
+        decodedValue = jsonDecode(rawValue);
+      } catch (_) {}
+    }
+
+    if (decodedValue is String && decodedValue.trim().startsWith('[')) {
+      try {
+        decodedValue = jsonDecode(decodedValue);
+      } catch (_) {}
+    }
+
+    if (decodedValue is List) {
+      return decodedValue
+          .map(_resolvePackageImage)
+          .where((image) => image.isNotEmpty)
+          .toList();
+    }
+
+    for (final separator in const [',', '|']) {
+      if (rawValue.contains(separator)) {
+        final splitImages = rawValue
+            .split(separator)
+            .map(_resolvePackageImage)
+            .where((image) => image.isNotEmpty)
+            .toList();
+        if (splitImages.isNotEmpty) {
+          return splitImages;
+        }
+      }
+    }
+
+    final resolved = _resolvePackageImage(decodedValue);
+    return resolved.isEmpty ? [] : [resolved];
+  }
+
   String _normalizeCategory(dynamic categoryValue) {
     final category = (categoryValue ?? '').toString().trim().toLowerCase();
 
@@ -118,6 +176,7 @@ class _PackagesPageState extends State<PackagesPage> {
     }
 
     return DefaultTabController(
+      initialIndex: _tabIndexForCategory(widget.initialCategory),
       length: 3,
       child: Scaffold(
         appBar: AppBar(
@@ -153,6 +212,17 @@ class _PackagesPageState extends State<PackagesPage> {
         ),
       ),
     );
+  }
+
+  int _tabIndexForCategory(String category) {
+    switch (category.toLowerCase()) {
+      case 'astro':
+        return 1;
+      case 'agro':
+        return 2;
+      default:
+        return 0;
+    }
   }
 }
 
@@ -207,6 +277,41 @@ class PackageCard extends StatelessWidget {
   final Map<String, dynamic> user;
 
   const PackageCard({super.key, required this.packageData, required this.user});
+
+  Widget _buildPackageImage({
+    required String imageUrl,
+    required double height,
+  }) {
+    if (imageUrl.isEmpty) {
+      return Container(
+        height: height,
+        color: AppColors.mutedSurface,
+        child: const Center(
+          child: Icon(
+            Icons.image_not_supported,
+            size: 44,
+            color: AppColors.textMuted,
+          ),
+        ),
+      );
+    }
+
+    return Container(
+      height: height,
+      color: AppColors.mutedSurface,
+      child: _LayeredPackageImage(
+        imageUrl: imageUrl,
+        fit: BoxFit.contain,
+        placeholder: const Center(
+          child: Icon(
+            Icons.image_not_supported,
+            size: 44,
+            color: AppColors.textMuted,
+          ),
+        ),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -270,36 +375,7 @@ class PackageCard extends StatelessWidget {
                   borderRadius: const BorderRadius.vertical(
                     top: Radius.circular(24),
                   ),
-                  child: imageUrl.isEmpty
-                      ? Container(
-                          height: 200,
-                          color: AppColors.mutedSurface,
-                          child: const Center(
-                            child: Icon(
-                              Icons.image_not_supported,
-                              size: 44,
-                              color: AppColors.textMuted,
-                            ),
-                          ),
-                        )
-                      : Image.network(
-                          imageUrl,
-                          height: 200,
-                          fit: BoxFit.cover,
-                          errorBuilder: (context, error, stackTrace) {
-                            return Container(
-                              height: 200,
-                              color: AppColors.mutedSurface,
-                              child: const Center(
-                                child: Icon(
-                                  Icons.image_not_supported,
-                                  size: 44,
-                                  color: AppColors.textMuted,
-                                ),
-                              ),
-                            );
-                          },
-                        ),
+                  child: _buildPackageImage(imageUrl: imageUrl, height: 200),
                 ),
                 Positioned.fill(
                   child: DecoratedBox(
@@ -550,6 +626,7 @@ class _PackageDetailsPageState extends State<PackageDetailsPage> {
 
   bool _isSubmitting = false;
   DateTime? _selectedDate;
+  int _selectedImageIndex = 0;
 
   @override
   void dispose() {
@@ -564,6 +641,16 @@ class _PackageDetailsPageState extends State<PackageDetailsPage> {
       initialDate: now,
       firstDate: now,
       lastDate: DateTime(now.year + 2),
+      builder: (context, child) {
+        return Theme(
+          data: Theme.of(context).copyWith(
+            textButtonTheme: TextButtonThemeData(
+              style: TextButton.styleFrom(foregroundColor: Colors.white),
+            ),
+          ),
+          child: child!,
+        );
+      },
     );
 
     if (picked == null) return;
@@ -645,14 +732,18 @@ class _PackageDetailsPageState extends State<PackageDetailsPage> {
   Widget build(BuildContext context) {
     final packageData = widget.packageData;
     final category = (packageData["category"] ?? '').toString();
-    final imageUrl = (packageData["imageUrl"] ?? '').toString();
+    final imageUrls = ((packageData["imageUrls"] as List?) ?? const [])
+        .map((image) => image.toString())
+        .where((image) => image.isNotEmpty)
+        .toList();
+    final imageUrl = imageUrls.isNotEmpty
+        ? imageUrls.first
+        : (packageData["imageUrl"] ?? '').toString();
     final isAstro = category.toLowerCase() == 'astro';
     final isTour = category.toLowerCase() == 'tour';
     final telescopeProvided =
         packageData["telescopeProvided"] == 1 ||
         packageData["telescopeProvided"] == true;
-    final userName = (widget.user['name'] ?? 'Traveler').toString();
-    final userEmail = (widget.user['email'] ?? '').toString();
 
     final details = <String>[
       _formatLabel("Category", packageData["category"]),
@@ -687,22 +778,61 @@ class _PackageDetailsPageState extends State<PackageDetailsPage> {
                       color: Colors.grey[300],
                       child: const Icon(Icons.image_not_supported, size: 56),
                     )
-                  : Image.network(
-                      imageUrl,
+                  : SizedBox(
                       height: 220,
-                      width: double.infinity,
-                      fit: BoxFit.cover,
-                      errorBuilder: (context, error, stackTrace) {
-                        return Container(
-                          height: 220,
-                          width: double.infinity,
-                          color: Colors.grey[300],
-                          child: const Icon(
-                            Icons.image_not_supported,
-                            size: 56,
+                      child: Stack(
+                        alignment: Alignment.bottomCenter,
+                        children: [
+                          PageView.builder(
+                            itemCount: imageUrls.isEmpty ? 1 : imageUrls.length,
+                            onPageChanged: (index) {
+                              setState(() => _selectedImageIndex = index);
+                            },
+                            itemBuilder: (context, index) {
+                              final currentImage = imageUrls.isEmpty
+                                  ? imageUrl
+                                  : imageUrls[index];
+                              return Container(
+                                color: AppColors.mutedSurface,
+                                child: _LayeredPackageImage(
+                                  imageUrl: currentImage,
+                                  fit: BoxFit.contain,
+                                  placeholder: Container(
+                                    height: 220,
+                                    width: double.infinity,
+                                    color: Colors.grey[300],
+                                    child: const Icon(
+                                      Icons.image_not_supported,
+                                      size: 56,
+                                    ),
+                                  ),
+                                ),
+                              );
+                            },
                           ),
-                        );
-                      },
+                          if (imageUrls.length > 1)
+                            Positioned(
+                              bottom: 12,
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 10,
+                                  vertical: 6,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: Colors.black.withValues(alpha: 0.45),
+                                  borderRadius: BorderRadius.circular(999),
+                                ),
+                                child: Text(
+                                  "${_selectedImageIndex + 1}/${imageUrls.length}",
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ),
+                            ),
+                        ],
+                      ),
                     ),
             ),
             const SizedBox(height: 16),
@@ -738,44 +868,6 @@ class _PackageDetailsPageState extends State<PackageDetailsPage> {
               ),
             ),
             const SizedBox(height: 24),
-            const Text(
-              "Book This Package",
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
-            ),
-            const SizedBox(height: 12),
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(14),
-              decoration: BoxDecoration(
-                color: AppColors.surface,
-                borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: AppColors.border),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    "Booking will use your logged-in account",
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w700,
-                      color: AppColors.textPrimary,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    userName,
-                    style: const TextStyle(color: AppColors.textPrimary),
-                  ),
-                  if (userEmail.isNotEmpty)
-                    Text(
-                      userEmail,
-                      style: const TextStyle(color: AppColors.textMuted),
-                    ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 12),
             Form(
               key: _formKey,
               child: Column(
@@ -800,19 +892,6 @@ class _PackageDetailsPageState extends State<PackageDetailsPage> {
                     },
                   ),
                   const SizedBox(height: 16),
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: Colors.orange.shade50,
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: Colors.orange.shade200),
-                    ),
-                    child: const Text(
-                      "After booking, a pending request is created automatically and the host can review it from their booking requests screen.",
-                    ),
-                  ),
-                  const SizedBox(height: 16),
                   SizedBox(
                     width: double.infinity,
                     child: ElevatedButton(
@@ -835,6 +914,57 @@ class _PackageDetailsPageState extends State<PackageDetailsPage> {
           ],
         ),
       ),
+    );
+  }
+}
+
+class _LayeredPackageImage extends StatelessWidget {
+  final String imageUrl;
+  final BoxFit fit;
+  final Widget placeholder;
+
+  const _LayeredPackageImage({
+    required this.imageUrl,
+    required this.fit,
+    required this.placeholder,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final imageProvider = NetworkImage(imageUrl);
+
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        ImageFiltered(
+          imageFilter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
+          child: Image(
+            image: imageProvider,
+            fit: BoxFit.cover,
+            errorBuilder: (context, error, stackTrace) => placeholder,
+          ),
+        ),
+        DecoratedBox(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [
+                Colors.black.withValues(alpha: 0.10),
+                Colors.black.withValues(alpha: 0.22),
+              ],
+            ),
+          ),
+        ),
+        Padding(
+          padding: const EdgeInsets.all(12),
+          child: Image(
+            image: imageProvider,
+            fit: fit,
+            errorBuilder: (context, error, stackTrace) => placeholder,
+          ),
+        ),
+      ],
     );
   }
 }

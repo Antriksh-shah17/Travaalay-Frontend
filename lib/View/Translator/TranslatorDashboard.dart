@@ -26,7 +26,14 @@ class _TranslatorDashboardState extends State<TranslatorDashboard> {
       case 0:
         return TranslatorBookingsPage(user: widget.user);
       case 1:
-        return TranslatorProfilePage(user: widget.user);
+        return TranslatorProfilePage(
+          user: widget.user,
+          onProfileUpdated: (updatedUser) {
+            setState(() {
+              widget.user.addAll(updatedUser);
+            });
+          },
+        );
       default:
         return TranslatorBookingsPage(user: widget.user);
     }
@@ -34,48 +41,38 @@ class _TranslatorDashboardState extends State<TranslatorDashboard> {
 
   @override
   Widget build(BuildContext context) {
-    final translatorName = (widget.user['name'] ?? 'Translator').toString();
-
     return Scaffold(
       backgroundColor: AppColors.background,
       body: Column(
         children: [
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.fromLTRB(
-              AppSpacing.lg,
-              AppSpacing.xl + 18,
-              AppSpacing.lg,
-              AppSpacing.lg,
-            ),
-            decoration: const BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [AppColors.primary, AppColors.primaryLight],
+          if (_selectedIndex == 0)
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.fromLTRB(
+                AppSpacing.lg,
+                AppSpacing.xl + 18,
+                AppSpacing.lg,
+                AppSpacing.md,
               ),
-              borderRadius: BorderRadius.vertical(bottom: Radius.circular(28)),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  "Translator Workspace",
-                  style: Theme.of(
-                    context,
-                  ).textTheme.headlineSmall?.copyWith(color: Colors.white),
+              decoration: const BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [AppColors.primary, AppColors.primaryLight],
                 ),
-                const SizedBox(height: AppSpacing.xs),
-                Text(
-                  "Manage booking requests and keep your profile polished, $translatorName.",
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: Colors.white.withValues(alpha: 0.86),
-                    height: 1.4,
-                  ),
+                borderRadius: BorderRadius.vertical(
+                  bottom: Radius.circular(28),
                 ),
-              ],
+              ),
+              child: Text(
+                "Bookings",
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 28,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
             ),
-          ),
           Expanded(
             child: AnimatedSwitcher(
               duration: const Duration(milliseconds: 220),

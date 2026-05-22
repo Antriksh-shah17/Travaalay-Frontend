@@ -4,13 +4,15 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:image_picker/image_picker.dart';
 import 'package:traavaalay/View/Login.dart';
+import 'package:traavaalay/View/Profile/EditProfilePage.dart';
 import 'package:traavaalay/config/api_config.dart';
 import 'package:traavaalay/theme/app_colors.dart';
 
 class HostProfilePage extends StatefulWidget {
   final Map<String, dynamic> user; // Pass the host JSON data
+  final ValueChanged<Map<String, dynamic>>? onProfileUpdated;
 
-  const HostProfilePage({super.key, required this.user});
+  const HostProfilePage({super.key, required this.user, this.onProfileUpdated});
 
   @override
   State<HostProfilePage> createState() => _HostProfilePageState();
@@ -18,11 +20,13 @@ class HostProfilePage extends StatefulWidget {
 
 class _HostProfilePageState extends State<HostProfilePage> {
   late String verificationStatus;
+  late Map<String, dynamic> _user;
 
   @override
   void initState() {
     super.initState();
-    final v = widget.user['verified'];
+    _user = Map<String, dynamic>.from(widget.user);
+    final v = _user['verified'];
     bool isVerified = v == 1 || v == true || v == '1';
     verificationStatus = isVerified ? "Verified ✅" : "Not Verified / Pending";
     _fetchLatestStatus();
@@ -31,30 +35,52 @@ class _HostProfilePageState extends State<HostProfilePage> {
   /// Fetch the latest user profile from the DB to check if Admin approved them
   Future<void> _fetchLatestStatus() async {
     try {
-      final response = await http.get(Uri.parse('${ApiConfig.usersBaseUrl}/${widget.user['id']}'));
+      final response = await http.get(
+        Uri.parse('${ApiConfig.usersBaseUrl}/${widget.user['id']}'),
+      );
       if (response.statusCode == 200) {
         final decodedData = jsonDecode(response.body);
-        
-        final Map<String, dynamic> data = decodedData is List 
-            ? (decodedData.isNotEmpty ? decodedData[0] : {}) 
+
+        final Map<String, dynamic> data = decodedData is List
+            ? (decodedData.isNotEmpty ? decodedData[0] : {})
             : decodedData;
-            
+
         final v = data['verified'];
         bool isVerified = v == 1 || v == true || v == '1';
-        
+
         if (mounted) {
           setState(() {
+            _user = {..._user, ...data};
             if (isVerified) {
               verificationStatus = "Verified ✅";
             } else {
               verificationStatus = "Not Verified / Pending";
             }
           });
+          widget.user.addAll(data);
+          widget.onProfileUpdated?.call(_user);
         }
       }
     } catch (e) {
       print("Error fetching latest status: $e");
     }
+  }
+
+  Future<void> _editProfile() async {
+    final updatedUser = await Navigator.push<Map<String, dynamic>>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => EditProfilePage(user: Map<String, dynamic>.from(_user)),
+      ),
+    );
+
+    if (updatedUser == null || !mounted) return;
+
+    setState(() {
+      _user = {..._user, ...updatedUser};
+    });
+    widget.user.addAll(updatedUser);
+    widget.onProfileUpdated?.call(_user);
   }
 
   /// Pick image and upload via standard HTTP Multipart Request
@@ -71,11 +97,15 @@ class _HostProfilePageState extends State<HostProfilePage> {
 
     try {
       var request = http.MultipartRequest(
-          'POST', Uri.parse('${ApiConfig.translatorsBaseUrl}/upload-document'));
-          
+        'POST',
+        Uri.parse('${ApiConfig.translatorsBaseUrl}/upload-document'),
+      );
+
       request.fields['translatorId'] = widget.user['id'].toString();
       request.fields['documentType'] = type;
-      request.files.add(await http.MultipartFile.fromPath('document', file.path));
+      request.files.add(
+        await http.MultipartFile.fromPath('document', file.path),
+      );
 
       var streamedResponse = await request.send();
       var response = await http.Response.fromStream(streamedResponse);
@@ -130,10 +160,15 @@ class _HostProfilePageState extends State<HostProfilePage> {
 
   @override
   Widget build(BuildContext context) {
-    final user = widget.user;
+    final user = _user;
     final name = (user['name'] ?? "Unknown").toString();
     final email = (user['email'] ?? "No Email").toString();
     final city = (user['city'] ?? "Unknown City").toString();
+    final phone = (user['phone'] ?? "No phone added").toString();
+    final languages = ((user['languages'] as List?) ?? const [])
+        .map((language) => language.toString().trim())
+        .where((language) => language.isNotEmpty)
+        .toList();
     final initials = _buildInitials(name);
     final bool isVerified = verificationStatus.contains("Verified ✅");
 
@@ -146,7 +181,7 @@ class _HostProfilePageState extends State<HostProfilePage> {
           slivers: [
             SliverAppBar(
               pinned: true,
-              expandedHeight: 300,
+              expandedHeight: 235,
               backgroundColor: AppColors.surface,
               foregroundColor: Colors.white,
               title: const Text("Host Profile"),
@@ -190,29 +225,46 @@ class _HostProfilePageState extends State<HostProfilePage> {
                                   minHeight: constraints.maxHeight,
                                 ),
                                 child: Padding(
-                                  padding: const EdgeInsets.fromLTRB(24, 110, 24, 28),
+                                  padding: const EdgeInsets.fromLTRB(
+                                    24,
+                                    96,
+                                    24,
+                                    20,
+                                  ),
                                   child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
                                     mainAxisAlignment: MainAxisAlignment.end,
                                     children: [
                                       CircleAvatar(
-                                        radius: 42,
+                                        radius: 34,
                                         backgroundColor: Colors.white,
                                         child: CircleAvatar(
-                                          radius: 38,
+                                          radius: 30,
                                           backgroundColor: AppColors.secondary,
-                                          backgroundImage: user['profileImage'] != null && user['profileImage'].toString().isNotEmpty
+                                          backgroundImage:
+                                              user['profileImage'] != null &&
+                                                  user['profileImage']
+                                                      .toString()
+                                                      .isNotEmpty
                                               ? NetworkImage(
-                                                  user['profileImage'].toString().startsWith('http')
-                                                      ? user['profileImage'].toString()
-                                                      : "${ApiConfig.apiBaseUrl.replaceAll(RegExp(r'/api$'), '')}/uploads/${user['profileImage']}"
+                                                  user['profileImage']
+                                                          .toString()
+                                                          .startsWith('http')
+                                                      ? user['profileImage']
+                                                            .toString()
+                                                      : "${ApiConfig.apiBaseUrl.replaceAll(RegExp(r'/api$'), '')}/uploads/${user['profileImage']}",
                                                 )
                                               : null,
-                                          child: user['profileImage'] == null || user['profileImage'].toString().isEmpty
+                                          child:
+                                              user['profileImage'] == null ||
+                                                  user['profileImage']
+                                                      .toString()
+                                                      .isEmpty
                                               ? Text(
                                                   initials,
                                                   style: const TextStyle(
-                                                    fontSize: 28,
+                                                    fontSize: 22,
                                                     fontWeight: FontWeight.bold,
                                                     color: AppColors.primary,
                                                   ),
@@ -227,22 +279,28 @@ class _HostProfilePageState extends State<HostProfilePage> {
                                             name,
                                             style: const TextStyle(
                                               color: Colors.white,
-                                              fontSize: 28,
+                                              fontSize: 22,
                                               fontWeight: FontWeight.bold,
                                             ),
                                           ),
                                           if (isVerified) ...[
                                             const SizedBox(width: 8),
-                                            const Icon(Icons.verified, color: Colors.amber, size: 28),
-                                          ]
+                                            const Icon(
+                                              Icons.verified,
+                                              color: Colors.amber,
+                                              size: 22,
+                                            ),
+                                          ],
                                         ],
                                       ),
-                                      const SizedBox(height: 6),
+                                      const SizedBox(height: 4),
                                       Text(
                                         "Host • $city",
                                         style: TextStyle(
-                                          color: Colors.white.withValues(alpha: 0.9),
-                                          fontSize: 15,
+                                          color: Colors.white.withValues(
+                                            alpha: 0.9,
+                                          ),
+                                          fontSize: 13,
                                         ),
                                       ),
                                     ],
@@ -269,17 +327,34 @@ class _HostProfilePageState extends State<HostProfilePage> {
                       subtitle: "Your public profile information.",
                       child: Column(
                         children: [
-                          _buildInfoRow(Icons.person_outline, "Full Name", name),
+                          _buildInfoRow(
+                            Icons.person_outline,
+                            "Full Name",
+                            name,
+                          ),
                           _buildInfoRow(Icons.email_outlined, "Email", email),
-                          _buildInfoRow(Icons.location_city_outlined, "City", city, isLast: true),
+                          _buildInfoRow(
+                            Icons.translate_outlined,
+                            "Languages",
+                            languages.isEmpty
+                                ? "No languages added"
+                                : languages.join(", "),
+                          ),
+                          _buildInfoRow(Icons.call_outlined, "Phone", phone),
+                          _buildInfoRow(
+                            Icons.location_city_outlined,
+                            "City",
+                            city,
+                            isLast: true,
+                          ),
                         ],
                       ),
                     ),
                     const SizedBox(height: 18),
                     _buildSectionCard(
                       title: "Verification Status",
-                      subtitle: isVerified 
-                          ? "Your profile is fully verified." 
+                      subtitle: isVerified
+                          ? "Your profile is fully verified."
                           : "Complete your verification to build trust with tourists.",
                       child: Column(
                         children: [
@@ -291,22 +366,30 @@ class _HostProfilePageState extends State<HostProfilePage> {
                                   : AppColors.warning.withValues(alpha: 0.14),
                               borderRadius: BorderRadius.circular(12),
                               border: Border.all(
-                                color: isVerified ? AppColors.success : AppColors.warning,
+                                color: isVerified
+                                    ? AppColors.success
+                                    : AppColors.warning,
                               ),
                             ),
                             child: Row(
                               children: [
                                 Icon(
-                                  isVerified ? Icons.verified : Icons.pending_actions, 
-                                  color: isVerified ? AppColors.success : AppColors.warning
+                                  isVerified
+                                      ? Icons.verified
+                                      : Icons.pending_actions,
+                                  color: isVerified
+                                      ? AppColors.success
+                                      : AppColors.warning,
                                 ),
                                 const SizedBox(width: 10),
                                 Expanded(
                                   child: Text(
-                                    verificationStatus, 
+                                    verificationStatus,
                                     style: TextStyle(
-                                      fontWeight: FontWeight.bold, 
-                                      color: isVerified ? AppColors.success : AppColors.warning
+                                      fontWeight: FontWeight.bold,
+                                      color: isVerified
+                                          ? AppColors.success
+                                          : AppColors.warning,
                                     ),
                                   ),
                                 ),
@@ -338,12 +421,20 @@ class _HostProfilePageState extends State<HostProfilePage> {
                                 style: ElevatedButton.styleFrom(
                                   backgroundColor: AppColors.secondary,
                                   foregroundColor: AppColors.primary,
-                                  padding: const EdgeInsets.symmetric(vertical: 14),
+                                  padding: const EdgeInsets.symmetric(
+                                    vertical: 14,
+                                  ),
                                   shape: RoundedRectangleBorder(
                                     borderRadius: BorderRadius.circular(12),
                                   ),
                                 ),
-                                child: const Text("Proceed to Verify", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                                child: const Text(
+                                  "Proceed to Verify",
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
                               ),
                             ),
                           ],
@@ -361,11 +452,7 @@ class _HostProfilePageState extends State<HostProfilePage> {
                             title: "Edit Profile",
                             subtitle: "Update your details and offerings",
                             accent: AppColors.accent,
-                            onTap: () {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(content: Text("Edit profile coming soon")),
-                              );
-                            },
+                            onTap: _editProfile,
                           ),
                           const SizedBox(height: 12),
                           _buildActionTile(
@@ -376,7 +463,9 @@ class _HostProfilePageState extends State<HostProfilePage> {
                             onTap: () {
                               Navigator.pushAndRemoveUntil(
                                 context,
-                                MaterialPageRoute(builder: (context) => const LoginScreen()),
+                                MaterialPageRoute(
+                                  builder: (context) => const LoginScreen(),
+                                ),
                                 (route) => false,
                               );
                             },
@@ -395,7 +484,11 @@ class _HostProfilePageState extends State<HostProfilePage> {
   }
 
   String _buildInitials(String name) {
-    final parts = name.split(' ').map((p) => p.trim()).where((p) => p.isNotEmpty).toList();
+    final parts = name
+        .split(' ')
+        .map((p) => p.trim())
+        .where((p) => p.isNotEmpty)
+        .toList();
     if (parts.isEmpty) return "H";
     if (parts.length == 1) return parts.first[0].toUpperCase();
     return "${parts.first[0]}${parts.last[0]}".toUpperCase();
@@ -409,21 +502,37 @@ class _HostProfilePageState extends State<HostProfilePage> {
     );
   }
 
-  Widget _buildSectionCard({required String title, required String subtitle, required Widget child}) {
+  Widget _buildSectionCard({
+    required String title,
+    required String subtitle,
+    required Widget child,
+  }) {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
         color: AppColors.surface,
         borderRadius: BorderRadius.circular(24),
-        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.22), blurRadius: 18, offset: const Offset(0, 8))],
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.22),
+            blurRadius: 18,
+            offset: const Offset(0, 8),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(title, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+          Text(
+            title,
+            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+          ),
           const SizedBox(height: 4),
-          Text(subtitle, style: const TextStyle(fontSize: 13, color: AppColors.textMuted)),
+          Text(
+            subtitle,
+            style: const TextStyle(fontSize: 13, color: AppColors.textMuted),
+          ),
           const SizedBox(height: 16),
           child,
         ],
@@ -431,11 +540,18 @@ class _HostProfilePageState extends State<HostProfilePage> {
     );
   }
 
-  Widget _buildInfoRow(IconData icon, String label, String value, {bool isLast = false}) {
+  Widget _buildInfoRow(
+    IconData icon,
+    String label,
+    String value, {
+    bool isLast = false,
+  }) {
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 12),
       decoration: BoxDecoration(
-        border: isLast ? null : const Border(bottom: BorderSide(color: AppColors.border)),
+        border: isLast
+            ? null
+            : const Border(bottom: BorderSide(color: AppColors.border)),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -443,7 +559,10 @@ class _HostProfilePageState extends State<HostProfilePage> {
           Container(
             width: 38,
             height: 38,
-            decoration: BoxDecoration(color: AppColors.mutedSurface, borderRadius: BorderRadius.circular(12)),
+            decoration: BoxDecoration(
+              color: AppColors.mutedSurface,
+              borderRadius: BorderRadius.circular(12),
+            ),
             child: Icon(icon, size: 18, color: AppColors.secondary),
           ),
           const SizedBox(width: 12),
@@ -451,9 +570,21 @@ class _HostProfilePageState extends State<HostProfilePage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(label, style: const TextStyle(fontSize: 12, color: AppColors.textMuted)),
+                Text(
+                  label,
+                  style: const TextStyle(
+                    fontSize: 12,
+                    color: AppColors.textMuted,
+                  ),
+                ),
                 const SizedBox(height: 4),
-                Text(value, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
+                Text(
+                  value,
+                  style: const TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
               ],
             ),
           ),
@@ -495,13 +626,29 @@ class _HostProfilePageState extends State<HostProfilePage> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(title, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
+                  Text(
+                    title,
+                    style: const TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
                   const SizedBox(height: 2),
-                  Text(subtitle, style: const TextStyle(fontSize: 12.5, color: AppColors.textMuted)),
+                  Text(
+                    subtitle,
+                    style: const TextStyle(
+                      fontSize: 12.5,
+                      color: AppColors.textMuted,
+                    ),
+                  ),
                 ],
               ),
             ),
-            const Icon(Icons.arrow_forward_ios, size: 16, color: AppColors.textMuted),
+            const Icon(
+              Icons.arrow_forward_ios,
+              size: 16,
+              color: AppColors.textMuted,
+            ),
           ],
         ),
       ),

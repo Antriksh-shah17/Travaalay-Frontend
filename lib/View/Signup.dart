@@ -1,6 +1,5 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:http/http.dart' as http;
 import 'package:traavaalay/config/api_config.dart';
 import 'package:traavaalay/theme/app_colors.dart';
@@ -17,8 +16,9 @@ class _SignupScreenState extends State<SignupScreen> {
   final TextEditingController nameController = TextEditingController();
   final TextEditingController emailController = TextEditingController();
   final TextEditingController passwordController = TextEditingController();
-  final TextEditingController roleController = TextEditingController();
+  final TextEditingController phoneController = TextEditingController();
   final TextEditingController otpController = TextEditingController();
+  String _selectedRole = 'user';
 
   bool loading = false;
 
@@ -83,8 +83,9 @@ class _SignupScreenState extends State<SignupScreen> {
               'name': nameController.text.trim(),
               'email': emailController.text.trim(),
               'password': passwordController.text.trim(),
-              'role': roleController.text.trim().toLowerCase(),
+              'role': _selectedRole,
               'city': "Ahmedabad",
+              'phone': phoneController.text.trim(),
               'otp': otpController.text.trim(),
             }),
           )
@@ -129,6 +130,14 @@ class _SignupScreenState extends State<SignupScreen> {
     }
   }
 
+  Widget _buildLoadingSpinner() {
+    return const SizedBox(
+      width: 20,
+      height: 20,
+      child: CircularProgressIndicator(strokeWidth: 2.2, color: Colors.white),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -139,18 +148,7 @@ class _SignupScreenState extends State<SignupScreen> {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Image.asset("assets/TravText.png", height: 100),
-              const SizedBox(height: 30),
-
-              Text(
-                "Sign Up",
-                style: GoogleFonts.poppins(
-                  fontSize: 28,
-                  fontWeight: FontWeight.bold,
-                  color: AppColors.textPrimary,
-                ),
-              ),
-
+              Image.asset("assets/TravText.png", height: 200),
               const SizedBox(height: 30),
 
               // NAME
@@ -185,13 +183,38 @@ class _SignupScreenState extends State<SignupScreen> {
               ),
               const SizedBox(height: 15),
 
-              // ROLE
+              // PHONE
               TextField(
-                controller: roleController,
+                controller: phoneController,
+                keyboardType: TextInputType.phone,
                 decoration: const InputDecoration(
-                  labelText: "Role (user/translator/host)",
+                  labelText: "Phone Number",
                   border: OutlineInputBorder(),
                 ),
+              ),
+              const SizedBox(height: 15),
+
+              // ROLE
+              DropdownButtonFormField<String>(
+                initialValue: _selectedRole,
+                decoration: const InputDecoration(
+                  labelText: "Role",
+                  border: OutlineInputBorder(),
+                ),
+                items: const [
+                  DropdownMenuItem(value: 'user', child: Text('User')),
+                  DropdownMenuItem(
+                    value: 'translator',
+                    child: Text('Translator'),
+                  ),
+                  DropdownMenuItem(value: 'host', child: Text('Host')),
+                ],
+                onChanged: loading
+                    ? null
+                    : (value) {
+                        if (value == null) return;
+                        setState(() => _selectedRole = value);
+                      },
               ),
               const SizedBox(height: 15),
 
@@ -207,37 +230,84 @@ class _SignupScreenState extends State<SignupScreen> {
               ),
               const SizedBox(height: 20),
 
-              // SEND OTP BUTTON
-              ElevatedButton(
-                onPressed: loading ? null : sendOtp,
-                child: loading
-                    ? const CircularProgressIndicator(color: Colors.white)
-                    : const Text("Send OTP"),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.warning,
-                  foregroundColor: AppColors.primary,
-                  minimumSize: const Size(double.infinity, 50),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: AppColors.surface,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: AppColors.border),
                 ),
-              ),
-
-              const SizedBox(height: 15),
-
-              // SIGNUP BUTTON
-              ElevatedButton(
-                onPressed: loading ? null : verifySignup,
-                child: loading
-                    ? const CircularProgressIndicator(color: Colors.white)
-                    : const Text(
-                        "Sign Up",
-                        style: TextStyle(color: Colors.white, fontSize: 16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      "OTP Verification",
+                      style: TextStyle(
+                        color: AppColors.textPrimary,
+                        fontSize: 15,
+                        fontWeight: FontWeight.w700,
                       ),
-                style: ElevatedButton.styleFrom(
-                  minimumSize: const Size(double.infinity, 50),
-                  backgroundColor: AppColors.secondary,
-                  foregroundColor: AppColors.primary,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
+                    ),
+                    const SizedBox(height: 4),
+                    const Text(
+                      "Send the code first, then verify to create your account.",
+                      style: TextStyle(
+                        color: AppColors.textMuted,
+                        fontSize: 12.5,
+                      ),
+                    ),
+                    const SizedBox(height: 14),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: OutlinedButton.icon(
+                            onPressed: loading ? null : sendOtp,
+                            icon: loading
+                                ? _buildLoadingSpinner()
+                                : const Icon(
+                                    Icons.mark_email_read_outlined,
+                                    size: 18,
+                                  ),
+                            label: const Text("Send OTP"),
+                            style: OutlinedButton.styleFrom(
+                              minimumSize: const Size(double.infinity, 50),
+                              foregroundColor: AppColors.secondary,
+                              side: const BorderSide(color: AppColors.border),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: ElevatedButton.icon(
+                            onPressed: loading ? null : verifySignup,
+                            icon: loading
+                                ? _buildLoadingSpinner()
+                                : const Icon(Icons.verified_rounded, size: 18),
+                            label: const Text(
+                              "Sign Up",
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 15.5,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            style: ElevatedButton.styleFrom(
+                              minimumSize: const Size(double.infinity, 50),
+                              backgroundColor: AppColors.secondary,
+                              foregroundColor: AppColors.primary,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
                 ),
               ),
 

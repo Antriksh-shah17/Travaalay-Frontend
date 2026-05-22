@@ -34,7 +34,9 @@ dev_dependencies:
 flutter_icons:
   android: true
   ios: true
-  image_path: "assets/logogg.png"
+  image_path: "assets/app_icon_black.png"
+  adaptive_icon_background: "#000000"
+  remove_alpha_ios: true
 
 flutter:
   uses-material-design: true
@@ -44,10 +46,12 @@ flutter:
     - assets/astro.mp4
     - assets/translator.mp4
     - assets/agro.mp4
+    - assets/travai.mp4
     - assets/lunar.jpeg
     - assets/profile.png
     - assets/logog.png
     - assets/logogg.png
+    - assets/app_icon_black.png
     - assets/TravText.png
     - assets/Gauri.jpeg
     - assets/Language Translation Animation.gif

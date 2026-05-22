@@ -241,7 +241,7 @@ Filter for: "🖼️" or "Image" or "❌"
 
 ### Test 1: Verify API Returns Images
 ```bash
-curl -X POST https://wnn3xmpd-5000.inc1.devtunnels.ms/api/travai \
+curl -X POST https://wnn3xmpd-5000.inc1.devtunnels.ms/travai \
   -H 'Content-Type: application/json' \
   -d '{"city":"Mumbai","days":2}' | jq '.itinerary.days[0].places[0]'
 
